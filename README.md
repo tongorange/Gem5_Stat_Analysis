@@ -85,6 +85,51 @@ python gui.py
 - `configs/interest.csv`
 - `utils/analyzer.py`
 
+指标规则规定如下：
+本工具通过 **规则驱动（rule-based）** 的方式定义和派生性能指标，所有可分析指标均由 `METRIC_RULES` 描述，其定义位于：
+
+- `utils/analyzer.py`
+
+每一条指标规则包含以下字段：
+
+- `patterns`  
+  用于匹配 gem5 `stats.txt` 中的统计项，支持正则表达式  
+- `op`  
+  指标的计算方式（如保持原值、比值计算等）
+- `desc`  
+  指标语义说明（用于文档与理解）
+
+这是规则示例：
+
+```python
+METRIC_RULES = {
+
+    # CPU IPC
+    "cpu_ipc": {
+        "patterns": [
+            r"^system\.cpu\d+\.ipc$",
+        ],
+        "op": "identity",
+        "desc": "mean IPC across CPU cores",
+    },
+
+    # L3 Cache Hit Rate
+    "L3_cache_hit_rate": {
+        "patterns": [
+            r"^L3CacheMemory\.m_demand_hits$",
+            r"^L3CacheMemory\.m_demand_accesses$",
+        ],
+        "op": "ratio",
+        "desc": "L3 cache hit rate",
+    },
+}
+```
+支持的计算操作（op）
+- identity：对匹配到的统计项直接进行聚合（如对多核取均值）
+- ratio：对多个统计项执行比值计算
+    - patterns[0] / patterns[1]
+    - 常用于命中率、利用率等派生指标
+
 
 ### 图像类型扩展
 图像绘制定义在 `utils/plotter.py` 下，如果想要扩展绘制的图像类型，可以仿照已有的代码进行扩展
