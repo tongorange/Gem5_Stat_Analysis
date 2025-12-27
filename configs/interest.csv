@@ -1,0 +1,15 @@
+name
+simSeconds
+ipc
+L3CacheMemory.m_demand_hits
+L3CacheMemory.m_demand_accesses
+tcc_cntrl0.L2cache.m_demand_hits
+tcc_cntrl0.L2cache.m_demand_accesses
+cp_cntrl0.L2cache.m_demand_hits
+cp_cntrl0.L2cache.m_demand_accesses
+cp_cntrl1.L1Icache.m_demand_hits
+cp_cntrl1.L1Icache.m_demand_accesses
+requestorReadTotalLat::ruby.dir_cntrl0
+requestorWriteTotalLat::ruby.dir_cntrl0
+requestorReadAvgLat::ruby.dir_cntrl0
+requestorWriteAvgLat::ruby.dir_cntrl0

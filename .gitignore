@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv
+venv/
+
+# Conda
+.envs/
+.miniconda/
+.anaconda/
+
+# Results / Outputs
+results/
+plots/
+*.png
+*.pdf
+*.svg
+
+# OS
+.DS_Store
