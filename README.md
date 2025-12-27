@@ -52,6 +52,11 @@ Gem5_Stat_Analysis/
 ### 环境配置
 本项目可以由 `miniconda` 直接生成环境，通过 `environment.yaml` 生成可以运行该项目的环境。
 
+```bash
+conda env create -f environment.yaml
+conda activate stat
+```
+
 ### `stats.txt` 父文件夹重定向与命名
 - 通过 `run.sh` 将输出定向到 `results/raw`
 - 父文件夹命名为 `benchmark_config`
