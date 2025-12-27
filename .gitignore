@@ -15,9 +15,6 @@ venv/
 # Results / Outputs
 results/
 plots/
-*.png
-*.pdf
-*.svg
 
 # OS
 .DS_Store
