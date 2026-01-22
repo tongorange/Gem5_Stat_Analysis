@@ -40,6 +40,41 @@ METRIC_RULES = {
         "op": "identity",
         "desc": "mean IPC across GPU compute units",
     },
+    "cpu_load_to_use_mean": {
+        "patterns": [
+            r"^system\.cpu\d+\.lsq0\.loadToUse::mean$",
+        ],
+        "op": "identity",
+        "desc": "mean load-to-use latency (cycles) across CPUs",
+    },
+    "ruby_hit_latency_mean": {
+        "patterns": [
+            r"^(?:system\.ruby\.)?m_hitLatencyHistSeqr::mean$",
+        ],
+        "op": "identity",
+        "desc": "Ruby sequencer hit latency mean",
+    },
+    "ruby_miss_latency_mean": {
+        "patterns": [
+            r"^(?:system\.ruby\.)?m_missLatencyHistSeqr::mean$",
+        ],
+        "op": "identity",
+        "desc": "Ruby sequencer miss latency mean",
+    },
+    "mem_read_avg_lat": {
+        "patterns": [
+            r"^(?:system\.mem_ctrls\.)?requestorReadAvgLat::ruby\.dir_cntrl0$",
+        ],
+        "op": "identity",
+        "desc": "Memory controller read avg latency (ticks)",
+    },
+    "mem_write_avg_lat": {
+        "patterns": [
+            r"^(?:system\.mem_ctrls\.)?requestorWriteAvgLat::ruby\.dir_cntrl0$",
+        ],
+        "op": "identity",
+        "desc": "Memory controller write avg latency (ticks)",
+    },
 
     # =====================================================
     # L3 Cache Hit Rate
@@ -51,6 +86,105 @@ METRIC_RULES = {
         ],
         "op": "ratio",   # pattern0 / pattern1
         "desc": "L3 cache hit rate",
+    },
+
+    # =====================================================
+    # Bloom Filter
+    # =====================================================
+    "bloom_total_read_checks": {
+        "patterns": [
+            r"^(?:system\.ruby\.dir_cntrl0\.BloomFilter\.)?bloomTotalReadChecks$",
+        ],
+        "op": "identity",
+        "desc": "Bloom total read checks",
+    },
+    "bloom_bypass_reads": {
+        "patterns": [
+            r"^(?:system\.ruby\.dir_cntrl0\.BloomFilter\.)?bloomBypassReads$",
+        ],
+        "op": "identity",
+        "desc": "Bloom bypass reads",
+    },
+    "bloom_non_bypass_reads": {
+        "patterns": [
+            r"^(?:system\.ruby\.dir_cntrl0\.BloomFilter\.)?bloomNonBypassReads$",
+        ],
+        "op": "identity",
+        "desc": "Bloom non-bypass reads",
+    },
+    "bloom_dirty_transitions": {
+        "patterns": [
+            r"^(?:system\.ruby\.dir_cntrl0\.BloomFilter\.)?dirtyLineTransitions$",
+        ],
+        "op": "identity",
+        "desc": "Bloom clean->dirty transitions",
+    },
+    "bloom_dirty_to_clean_transitions": {
+        "patterns": [
+            r"^(?:system\.ruby\.dir_cntrl0\.BloomFilter\.)?dirtyToCleanTransitions$",
+        ],
+        "op": "identity",
+        "desc": "Bloom dirty->clean transitions",
+    },
+    "bloom_counter_inc_total": {
+        "patterns": [
+            r"^(?:system\.ruby\.dir_cntrl0\.BloomFilter\.)?bloomCounterIncTotal$",
+        ],
+        "op": "identity",
+        "desc": "Bloom counter increment attempts",
+    },
+    "bloom_counter_dec_total": {
+        "patterns": [
+            r"^(?:system\.ruby\.dir_cntrl0\.BloomFilter\.)?bloomCounterDecTotal$",
+        ],
+        "op": "identity",
+        "desc": "Bloom counter decrement attempts",
+    },
+
+    # =====================================================
+    # Ruby Traffic (MessageBuffer counts)
+    # =====================================================
+    "dir_request_in_msgs": {
+        "patterns": [
+            r"^(?:system\.ruby\.dir_cntrl0\.)?(?:requestNetwork_in|requestFromCores)\.m_msg_count$",
+        ],
+        "op": "identity",
+        "desc": "Dir requestNetwork_in message count",
+    },
+    "dir_request_out_msgs": {
+        "patterns": [
+            r"^(?:system\.ruby\.dir_cntrl0\.)?(?:requestNetwork_out|requestToMemory)\.m_msg_count$",
+        ],
+        "op": "identity",
+        "desc": "Dir requestNetwork_out message count",
+    },
+    "dir_response_in_msgs": {
+        "patterns": [
+            r"^(?:system\.ruby\.dir_cntrl0\.)?(?:responseNetwork_in|responseFromMemory)\.m_msg_count$",
+        ],
+        "op": "identity",
+        "desc": "Dir responseNetwork_in message count",
+    },
+    "dir_response_out_msgs": {
+        "patterns": [
+            r"^(?:system\.ruby\.dir_cntrl0\.)?(?:responseNetwork_out|responseToCore)\.m_msg_count$",
+        ],
+        "op": "identity",
+        "desc": "Dir responseNetwork_out message count",
+    },
+    "bloom_req_from_cores": {
+        "patterns": [
+            r"^(?:system\.ruby\.)?bloom_cntrl0\.requestFromCores\.m_msg_count$",
+        ],
+        "op": "identity",
+        "desc": "Bloom requestFromCores message count",
+    },
+    "bloom_req_to_dir": {
+        "patterns": [
+            r"^(?:system\.ruby\.)?bloom_cntrl0\.requestToDir\.m_msg_count$",
+        ],
+        "op": "identity",
+        "desc": "Bloom requestToDir message count",
     },
 }
 
@@ -86,6 +220,12 @@ class ParamGrouper:
 
     @staticmethod
     def compute_metric(df: pd.DataFrame, rule: dict) -> float:
+        if rule["op"] == "sum":
+            cols = [c for c in df.columns if re.match(rule["patterns"][0], c)]
+            if not cols:
+                return float("nan")
+            return float(df[cols].sum(axis=1).mean())
+
         vectors = ParamGrouper.build_vectors(df, rule["patterns"])
         if any(v is None for v in vectors):
             return float("nan")
@@ -120,8 +260,13 @@ class Gem5Analyzer:
             df = pd.read_csv(csv_file)
 
             # benchmark / config
-            benchmark = csv_file.stem.split("_")[0]
-            config = "default"
+            if "benchmark" in df.columns and "config" in df.columns:
+                benchmark = str(df["benchmark"].iloc[0])
+                config = str(df["config"].iloc[0])
+            else:
+                parts = csv_file.stem.split("_", 1)
+                benchmark = parts[0]
+                config = parts[1] if len(parts) > 1 else "default"
 
             record = {
                 "benchmark": benchmark,

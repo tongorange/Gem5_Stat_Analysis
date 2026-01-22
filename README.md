@@ -41,9 +41,14 @@ Gem5_Stat_Analysis/
 ├── configs/
 │   └── interest.csv        # 感兴趣指标定义
 ├── results/
-│   ├── raw/                # gem5 原始输出，由 run.sh 重定向至此
+│   ├── raw/                # gem5 原始输出（旧流程）
 │   ├── parsed/             # 解析后的 CSV 数据
 │   └── analysis/           # 生成图表
+├── experiments/
+│   ├── configs/            # 实验配置与 sweep 参数
+│   │   └── sweeps/          # 扫描配置（LLC/Dir/Assoc 等）
+│   ├── runs/               # 每次实验运行输出（按时间戳组织）
+│   └── summary/            # 自动汇总 CSV
 ├── LICENSE
 └── README.md
 ```
@@ -57,10 +62,34 @@ conda env create -f environment.yaml
 conda activate stat
 ```
 
-### `stats.txt` 父文件夹重定向与命名
-- 通过 `run.sh` 将输出定向到 `results/raw`
-- 父文件夹命名为 `benchmark_config`
-    - 比如：`bfs_L1-16KB`，`btree_default`
+### 实验模式（新版，推荐）
+使用 `stats_analysis/scripts/run_experiments.sh` 组织实验输出：
+- 输出目录：`stats_analysis/results/raw/<tag>_<scenario>_<bloom>/`
+- 支持场景：`cpu_only` / `gpu_only` / `cpu_gpu`
+- Bloom：`bloom_off` / `bloom_on`
+
+汇总统计：
+```bash
+python stats_analysis/scripts/collect_metrics.py
+```
+生成：
+- `stats_analysis/experiments/summary/metrics.csv`（IPC + Bloom）
+- `stats_analysis/experiments/summary/traffic.csv`（MessageBuffer 流量）
+
+可用环境变量控制实验：
+```
+RUN_TAG=20260112_1500
+CPU_CMD=...
+GPU_CMD=...
+GPU_OPTIONS="..."
+LLC_BLOOM_SIZE=...
+LLC_BLOOM_MAX=...
+EXTRA_ARGS="--tcc-size=... --tcc-assoc=... ..."
+SCENARIOS="cpu_only gpu_only cpu_gpu"
+```
+
+### 旧模式（保留）
+`run.sh` 仍输出到 `results/raw`，保留兼容性。
 
 ### 启动 GUI
 启动 `conda` 的 `stat` 环境后，运行以下命名：

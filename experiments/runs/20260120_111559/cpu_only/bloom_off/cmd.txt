@@ -1,0 +1,12 @@
+WORKSPACE=/home/chengt/gem5-workspace
+SCENARIO=cpu_only
+BLOOM=bloom_off
+GEM5_BIN=/home/chengt/gem5-workspace/gem5/build/VEGA_X86/gem5.opt
+CONFIG=/home/chengt/gem5-workspace/gem5/configs/example/apu_se.py
+CPU_CMD=/home/chengt/gem5-workspace/gem5-resources/src/examples/matrix-multiply/matrix-multiply
+GPU_CMD=/home/chengt/gem5-workspace/gem5-resources/src/rodinia_hip/bin/particlefilter_float
+GPU_OPTIONS=-x 128 -y 128 -z 10 -np 1000
+LLC_BLOOM_SIZE=8192
+LLC_BLOOM_MAX=7
+EXTRA_ARGS=
+CMD: /home/chengt/gem5-workspace/gem5/build/VEGA_X86/gem5.opt CMD: --outdir=/home/chengt/gem5-workspace/stats_analysis/experiments/runs/20260120_111559/cpu_only/bloom_off CMD: --debug-flags=RubySlicc CMD: --debug-file=debug.log CMD: --debug-start=1000000000 CMD: --debug-end=2000000000 CMD: /home/chengt/gem5-workspace/gem5/configs/example/apu_se.py CMD: -n CMD: 4 CMD: --num-compute-units=4 CMD: --single-stats-dump CMD: --cpu-cmd=/home/chengt/gem5-workspace/gem5-resources/src/examples/matrix-multiply/matrix-multiply CMD: --cpu-only-mode 
