@@ -1,0 +1,58 @@
+{
+  "presets": {
+    "simple_bloom": {
+      "cpu_bench": [
+        "matrix-multiply"
+      ],
+      "gpu_bench": [
+        "bfs",
+        "btree",
+        "dwt2d",
+        "gaussian",
+        "hotspot",
+        "lavaMD",
+        "nn",
+        "nw",
+        "particlefilter",
+        "pathfinder"
+      ],
+      "scenario": [
+        "cpu-gpu"
+      ],
+      "bloom": [
+        "with-bloom",
+        "wo-bloom"
+      ],
+      "gate": [],
+      "metric": "cpu_ipc"
+    },
+    "simple_gate": {
+      "cpu_bench": [
+        "matrix-multiply"
+      ],
+      "gpu_bench": [
+        "bfs",
+        "btree",
+        "dwt2d",
+        "gaussian",
+        "hotspot",
+        "lavaMD",
+        "nn",
+        "nw",
+        "particlefilter",
+        "pathfinder"
+      ],
+      "scenario": [
+        "cpu-gpu"
+      ],
+      "bloom": [
+        "with-bloom"
+      ],
+      "gate": [
+        "gate-on",
+        "gate-off"
+      ],
+      "metric": "cpu_ipc"
+    }
+  }
+}
