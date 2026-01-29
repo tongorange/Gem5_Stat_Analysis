@@ -1,6 +1,4 @@
 import re
-import csv
-from pathlib import Path
 from typing import Dict, List, Optional, Any
 import pandas as pd
 
@@ -44,16 +42,9 @@ class Gem5Stat:
 
 class Gem5StatsParser:
     """gem5统计解析器"""
-    
-    def __init__(self, interest_file: str):
-        self.interest_params = self.load_interest_params(interest_file)
-    
-    @staticmethod
-    def load_interest_params(interest_file: str) -> List[str]:
-        """加载感兴趣的参数列表"""
-        with open(interest_file, 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            return [row["name"].strip() for row in reader if row["name"].strip()]
+
+    def __init__(self, interest_patterns: List[str]):
+        self.interest_patterns = [re.compile(p) for p in interest_patterns if p]
     
     def parse_stats_file(self, stats_file: str) -> Dict[str, Any]:
         """解析单个stats.txt文件"""
@@ -80,25 +71,15 @@ class Gem5StatsParser:
         return stats
     
     def extract_interest_stats(self, stats: Dict[str, Any]) -> Dict[str, Any]:
-        """从统计中提取感兴趣的参数（包含匹配）"""
+        """从统计中提取感兴趣的参数（正则匹配）"""
         results = {}
-        
-        for interest in self.interest_params:
-            matches = {}
-            for stat_name, stat_value in stats.items():
-                if interest in stat_name:
-                    matches[stat_name] = stat_value
-            
-            if matches:
-                # 如果只有一个匹配，直接存储
-                if len(matches) == 1:
-                    results[interest] = list(matches.values())[0]
-                else:
-                    # 多个匹配，存储为字典
-                    results[interest] = matches
-            else:
-                results[interest] = None
-        
+
+        for stat_name, stat_value in stats.items():
+            for pattern in self.interest_patterns:
+                if pattern.match(stat_name):
+                    results[stat_name] = stat_value
+                    break
+
         return results
     
     def parse_and_extract(self, stats_file: str) -> pd.DataFrame:
@@ -106,13 +87,4 @@ class Gem5StatsParser:
         stats = self.parse_stats_file(stats_file)
         interest_stats = self.extract_interest_stats(stats)
         
-        # 将嵌套字典展平
-        flat_data = {}
-        for key, value in interest_stats.items():
-            if isinstance(value, dict):
-                for sub_key, sub_value in value.items():
-                    flat_data[sub_key] = sub_value
-            else:
-                flat_data[key] = value
-        
-        return pd.DataFrame([flat_data])
+        return pd.DataFrame([interest_stats])

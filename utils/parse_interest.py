@@ -1,5 +1,6 @@
 from pathlib import Path
 from utils.gem5_parser import Gem5StatsParser
+from utils.analyzer import METRIC_RULES
 
 def auto_discover_benchmarks(raw_dir: Path):
     entries = []
@@ -47,13 +48,19 @@ def auto_discover_benchmarks(raw_dir: Path):
     return entries
 
 
+def _collect_interest_patterns():
+    patterns = []
+    for rule in METRIC_RULES.values():
+        patterns.extend(rule.get("patterns", []))
+    return patterns
+
+
 def parse_all_raw(
     raw_dir: Path,
     parsed_dir: Path,
-    interest_file: Path,
     verbose: bool = True
 ):
-    parser = Gem5StatsParser(str(interest_file))
+    parser = Gem5StatsParser(_collect_interest_patterns())
     entries = auto_discover_benchmarks(raw_dir)
 
     parsed_dir.mkdir(parents=True, exist_ok=True)

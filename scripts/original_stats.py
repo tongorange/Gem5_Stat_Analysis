@@ -1,6 +1,7 @@
 import re
 import csv
 from pathlib import Path
+from utils.analyzer import METRIC_RULES
 
 def parse_value(val: str):
     if val == "nan":
@@ -85,13 +86,11 @@ def parse_gem5_stats(file_path: str) -> "list[dict[str, Gem5Stat]]":
 def main():
     # === 路径设置 ===
     stats_path = Path("../raw_data/stats.txt")
-    interest_csv = Path("../configs/interest.csv")
     output_csv = Path("../parsed/pre_stats.csv")
-
-    # === Step 1: 读取感兴趣的参数名 ===
-    with open(interest_csv, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        interest_names = [row["name"].strip() for row in reader if row["name"].strip()]
+    patterns = []
+    for rule in METRIC_RULES.values():
+        patterns.extend(rule.get("patterns", []))
+    compiled = [re.compile(p) for p in patterns if p]
 
     # === Step 2: 解析 gem5 的统计文件 ===
     all_stats = parse_gem5_stats(str(stats_path))
@@ -102,51 +101,24 @@ def main():
 
     # === Step 3: 提取数据 - 改为包含匹配 ===
     results = []
-    for interest_name in interest_names:
-        matched = False
-        for stat_name, stat_obj in stats.items():
-            # 使用包含匹配而不是完全匹配
-            if interest_name in stat_name:
-                matched = True
-                value = stat_obj.value
-                # 每个匹配到的参数都单独记录，去掉description字段
+    for stat_name, stat_obj in stats.items():
+        for pattern in compiled:
+            if pattern.match(stat_name):
                 results.append({
-                    "interest_name": interest_name,  # 原始的兴趣名称
-                    "stat_name": stat_name,         # 匹配到的统计参数名
-                    "value": value
+                    "stat_name": stat_name,
+                    "value": stat_obj.value
                 })
-        
-        # 如果没有任何匹配，记录一条未匹配的信息
-        if not matched:
-            results.append({
-                "interest_name": interest_name,
-                "stat_name": "NO_MATCH",
-                "value": "N/A"
-            })
+                break
 
     # === Step 4: 写入 CSV 文件 ===
     output_csv.parent.mkdir(parents=True, exist_ok=True)
     with open(output_csv, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["interest_name", "stat_name", "value"])
+        writer = csv.DictWriter(f, fieldnames=["stat_name", "value"])
         writer.writeheader()
         writer.writerows(results)
 
-    # 统计信息
-    total_interest = len(interest_names)
-    total_matched_params = sum(1 for r in results if r["value"] != "N/A")
-    matched_interest = len(set(r["interest_name"] for r in results if r["value"] != "N/A"))
-    
     print(f"[OK] 已将解析结果写入 {output_csv}")
-    print(f"[INFO] 兴趣参数数量: {total_interest}")
-    print(f"[INFO] 匹配到参数的兴趣名称数量: {matched_interest}")
-    print(f"[INFO] 匹配到的总参数数量: {total_matched_params}")
-    
-    # 如果有未匹配的兴趣名称，显示它们
-    unmatched = set(r["interest_name"] for r in results if r["value"] == "N/A")
-    if unmatched:
-        print(f"[WARNING] 以下兴趣名称未匹配到任何参数:")
-        for name in sorted(unmatched):
-            print(f"  - {name}")
+    print(f"[INFO] 匹配到的总参数数量: {len(results)}")
 
 
 if __name__ == "__main__":

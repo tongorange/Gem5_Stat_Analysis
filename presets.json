@@ -24,6 +24,7 @@
         "wo-bloom"
       ],
       "gate": [],
+      "gate_pct": [],
       "metric": "cpu_ipc"
     },
     "simple_gate": {

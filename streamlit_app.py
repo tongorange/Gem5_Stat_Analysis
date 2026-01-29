@@ -14,7 +14,6 @@ from utils.parse_interest import parse_all_raw
 
 RAW_DIR = Path(__file__).resolve().parent / "results" / "raw"
 PARSED_DIR = Path(__file__).resolve().parent / "results" / "parsed"
-INTEREST_FILE = Path(__file__).resolve().parent / "configs" / "interest.csv"
 PRESET_FILE = Path(__file__).resolve().parent / "presets.json"
 
 
@@ -30,7 +29,6 @@ def parse_raw():
     success, total = parse_all_raw(
         raw_dir=RAW_DIR,
         parsed_dir=PARSED_DIR,
-        interest_file=INTEREST_FILE,
         verbose=False,
     )
     st.success(f"Parsed {success}/{total} runs")
@@ -59,7 +57,6 @@ def extract_tags(df):
         "gpu_bench": set(),
         "scenario": set(),
         "bloom": set(),
-        "gate": set(),
         "gate_pct": set(),
     }
     run_map = {}
@@ -82,7 +79,6 @@ def extract_tags(df):
             "gpu_bench": set(),
             "scenario": set(),
             "bloom": set(),
-            "gate": set(),
             "gate_pct": set(),
         }
         for token in config_tokens:
@@ -95,16 +91,14 @@ def extract_tags(df):
             elif token.startswith("gate-"):
                 if "wo-bloom" not in config_tokens:
                     if token == "gate-off":
-                        t["gate"].add("gate-off")
-                        tags["gate"].add("gate-off")
-                    else:
-                        t["gate"].add("gate-on")
-                        tags["gate"].add("gate-on")
-                        m = re.match(r"gate-(\\d+)p", token)
-                        if m:
-                            pct = m.group(1) + "%"
-                            t["gate_pct"].add(pct)
-                            tags["gate_pct"].add(pct)
+                        t["gate_pct"].add("100%")
+                        tags["gate_pct"].add("100%")
+                        continue
+                    m = re.match(r"gate-(\\d+)p", token)
+                    if m:
+                        pct = m.group(1) + "%"
+                        t["gate_pct"].add(pct)
+                        tags["gate_pct"].add(pct)
             else:
                 t["scenario"].add(token)
                 tags["scenario"].add(token)
@@ -151,6 +145,8 @@ if df.empty:
     st.stop()
 
 tags, run_map, run_tags = extract_tags(df)
+default_gate_pcts = ["10%", "30%", "50%", "70%", "100%"]
+gate_pct_options = sorted(set(tags["gate_pct"]).union(default_gate_pcts))
 
 presets = load_presets()
 st.sidebar.subheader("Presets")
@@ -162,7 +158,6 @@ if st.sidebar.button("Apply preset") and selected_preset != "(none)":
     st.session_state["gpu_bench_sel"] = preset.get("gpu_bench", [])
     st.session_state["scenario_sel"] = preset.get("scenario", [])
     st.session_state["bloom_sel"] = preset.get("bloom", [])
-    st.session_state["gate_sel"] = preset.get("gate", [])
     st.session_state["gate_pct_sel"] = preset.get("gate_pct", [])
     st.session_state["metric_sel"] = preset.get("metric", "")
 
@@ -177,7 +172,6 @@ if st.sidebar.button("Save preset"):
             "gpu_bench": st.session_state.get("gpu_bench_sel", []),
             "scenario": st.session_state.get("scenario_sel", []),
             "bloom": st.session_state.get("bloom_sel", []),
-            "gate": st.session_state.get("gate_sel", []),
             "gate_pct": st.session_state.get("gate_pct_sel", []),
             "metric": st.session_state.get("metric_sel", ""),
         }
@@ -195,8 +189,6 @@ if "scenario_sel" not in st.session_state:
     st.session_state["scenario_sel"] = []
 if "bloom_sel" not in st.session_state:
     st.session_state["bloom_sel"] = []
-if "gate_sel" not in st.session_state:
-    st.session_state["gate_sel"] = []
 if "gate_pct_sel" not in st.session_state:
     st.session_state["gate_pct_sel"] = []
 
@@ -226,18 +218,12 @@ selected_bloom = st.sidebar.multiselect(
     key="bloom_sel",
 )  # OR
 
-selected_gate = st.sidebar.multiselect(
-    "Gate",
-    tags["gate"],
-    key="gate_sel",
-)  # OR
-st.sidebar.caption("Gate filters only apply to with-bloom runs")
-
 selected_gate_pct = st.sidebar.multiselect(
     "Gate Threshold",
-    tags["gate_pct"],
+    gate_pct_options,
     key="gate_pct_sel",
 )  # OR
+st.sidebar.caption("Gate threshold applies only to with-bloom runs")
 
 metrics = [c for c in df.columns if c not in ("benchmark", "config")]
 if "metric_sel" not in st.session_state:
@@ -263,21 +249,10 @@ for label, (bench, config) in run_map.items():
     # Gate filtering rules:
     # - wo-bloom is never filtered out by gate selection.
     # - if both with-bloom and wo-bloom selected and no gate chosen, keep only gate-off for with-bloom.
-    gate_sel = set(selected_gate)
     pct_sel = set(selected_gate_pct)
-    if pct_sel and "gate-on" not in gate_sel:
-        gate_sel.add("gate-on")
-
-    if gate_sel:
-        if has_with and not gate_sel.intersection(t["gate"]):
+    if pct_sel:
+        if has_with and not pct_sel.intersection(t["gate_pct"]):
             continue
-        if has_with and "gate-on" in gate_sel and pct_sel:
-            if not pct_sel.intersection(t["gate_pct"]):
-                continue
-    else:
-        if has_with and ("wo-bloom" in selected_bloom):
-            if "gate-off" not in t["gate"]:
-                continue
 
     filtered_runs.append(label)
 
@@ -307,15 +282,8 @@ bench_cmds = []
 scenario_arg = ",".join(selected_scenario) if selected_scenario else ""
 bloom_arg = ",".join(selected_bloom) if selected_bloom else ""
 gate_items = []
-if "gate-off" in selected_gate:
-    gate_items.append("off")
-gate_on = "gate-on" in selected_gate
 if selected_gate_pct:
-    gate_on = True
     gate_items.extend(selected_gate_pct)
-elif gate_on:
-    default_pcts = tags["gate_pct"] if tags["gate_pct"] else ["10%", "30%", "50%", "70%"]
-    gate_items.extend(default_pcts)
 gate_arg = ",".join(gate_items) if gate_items else ""
 
 for b in gpu_benches:
@@ -363,7 +331,18 @@ if len(benches) > 1 or len(configs) > 1:
     n_groups = len(idx)
     n_cols = len(cols)
     width = 0.8 / max(n_cols, 1)
-    base_color = ["#614099", "#FABB6E", "#FC8002"]
+    base_color = [
+        "#5B8FF9",  # blue (baseline)
+        "#F6903D",  # orange
+        "#61DDAA",  # green
+        "#7262FD",  # purple
+        "#F6BD16",  # yellow
+        "#65789B",  # blue gray
+        "#008685",  # deep teal
+        "#9661BC",  # purple gray
+        "#78D3F8",  # light blue
+        "#BFBFBF",  # gray
+    ]
     highlight = "#000000"
 
     for j, col in enumerate(cols):
@@ -412,7 +391,7 @@ else:
     colors = []
     max_val = s.max()
     for v in s.values:
-        colors.append("#614099")
+        colors.append("#5B8FF9")
     ax.bar(s.index, s.values, color=colors)
     if pd.notna(max_val):
         max_idx = s.idxmax()

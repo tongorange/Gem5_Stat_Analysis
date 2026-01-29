@@ -39,7 +39,7 @@ Gem5_Stat_Analysis/
 │   ├── parse_interest.py   # gem5 原始 stats 解析与初步提取
 │   └── ...
 ├── configs/
-│   └── interest.csv        # 感兴趣指标定义
+│   └── (deprecated) interest.csv
 ├── results/
 │   ├── raw/                # gem5 原始输出（旧流程）
 │   ├── parsed/             # 解析后的 CSV 数据
@@ -111,7 +111,7 @@ python gui.py
 
 ### 指标扩展
 指标通过基于模式匹配的规则进行定义，相关逻辑位于：
-- `configs/interest.csv`
+- 指标匹配规则集中在 `utils/analyzer.py` 的 `METRIC_RULES`
 - `utils/analyzer.py`
 
 指标规则规定如下：
